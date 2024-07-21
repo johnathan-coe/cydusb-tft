@@ -1,0 +1,12 @@
+{
+    "idf.flashType": "UART",
+    "idf.port": "/dev/ttyUSB0",
+    "files.associations": {
+        "*.inc": "c",
+        "cassert": "c",
+        "chrono": "c",
+        "ranges": "c",
+        "variant": "c"
+    },
+    "idf.adapterTargetName": "esp32"
+}
