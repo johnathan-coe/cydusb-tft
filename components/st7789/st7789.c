@@ -70,7 +70,6 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 	ESP_LOGI(LOG_TAG, "GPIO_SCLK=%d",GPIO_SCLK);
 	spi_bus_config_t buscfg = {
 		.mosi_io_num = GPIO_MOSI,
-		.miso_io_num = -1,
 		.sclk_io_num = GPIO_SCLK,
 		.quadwp_io_num = -1,
 		.quadhd_io_num = -1,
@@ -109,18 +108,19 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 	dev->_SPIHandle = handle;
 }
 
-bool spi_master_write_byte(spi_device_handle_t SPIHandle, const uint8_t* Data, size_t DataLength)
+bool spi_master_write_byte(spi_device_handle_t SPIHandle, const uint8_t* data, size_t length)
 {
-	spi_transaction_t SPITransaction;
+	spi_transaction_t transaction;
 	esp_err_t ret;
 
-	if (DataLength > 0)
+	if (length > 0)
 	{
-		memset(&SPITransaction, 0, sizeof(spi_transaction_t));
-		SPITransaction.length = DataLength * 8;
-		SPITransaction.tx_buffer = Data;
+		memset(&transaction, 0, sizeof(spi_transaction_t));
 
-		ret = spi_device_transmit(SPIHandle, &SPITransaction); // Could use polling transmit here
+		transaction.length = length * 8; // Length in bits
+		transaction.tx_buffer = data;
+
+		ret = spi_device_transmit(SPIHandle, &transaction); // Could use polling transmit here
 		assert(ret == ESP_OK); 
 	}
 
@@ -160,6 +160,7 @@ void lcdInit(TFT_t * dev, int width, int height, int offsetx, int offsety)
 {
 	dev->_width = width;
 	dev->_height = height;
+
 	dev->_offsetx = offsetx;
 	dev->_offsety = offsety;
 
@@ -286,17 +287,16 @@ void lcdDrawFinish(TFT_t *dev)
 {
 	// set column(x) address
 	spi_master_write_command(dev, 0x2A);
-	spi_master_write_addr(dev, dev->_offsetx, dev->_offsetx+dev->_width-1);
+	spi_master_write_addr(dev, dev->_offsetx, dev->_offsetx + dev->_width - 1);
 
 	// set Page(y) address
 	spi_master_write_command(dev, 0x2B);
-	spi_master_write_addr(dev, dev->_offsety, dev->_offsety+dev->_height-1);
+	spi_master_write_addr(dev, dev->_offsety, dev->_offsety + dev->_height - 1);
 	
 	// Memory Write
 	spi_master_write_command(dev, 0x2C);
 
 	uint8_t *image = dev->_frame_buffer;
-
 	uint32_t size = dev->_width * dev->_height * 2;
 	while (size > 0)
 	{
