@@ -14,18 +14,6 @@
 #define TAG "ST7789"
 #define	_DEBUG_ 0
 
-#if 0
-#ifdef CONFIG_IDF_TARGET_ESP32
-#define LCD_HOST HSPI_HOST
-#elif defined CONFIG_IDF_TARGET_ESP32S2
-#define LCD_HOST SPI2_HOST
-#elif defined CONFIG_IDF_TARGET_ESP32S3
-#define LCD_HOST SPI2_HOST
-#elif defined CONFIG_IDF_TARGET_ESP32C3
-#define LCD_HOST SPI2_HOST
-#endif
-#endif
-
 #if CONFIG_SPI2_HOST
 #define HOST_ID SPI2_HOST
 #elif CONFIG_SPI3_HOST
@@ -55,21 +43,18 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 
 	ESP_LOGI(TAG, "GPIO_CS=%d",GPIO_CS);
 	if ( GPIO_CS >= 0 ) {
-		//gpio_pad_select_gpio( GPIO_CS );
 		gpio_reset_pin( GPIO_CS );
 		gpio_set_direction( GPIO_CS, GPIO_MODE_OUTPUT );
 		gpio_set_level( GPIO_CS, 0 );
 	}
 
 	ESP_LOGI(TAG, "GPIO_DC=%d",GPIO_DC);
-	//gpio_pad_select_gpio( GPIO_DC );
 	gpio_reset_pin( GPIO_DC );
 	gpio_set_direction( GPIO_DC, GPIO_MODE_OUTPUT );
 	gpio_set_level( GPIO_DC, 0 );
 
 	ESP_LOGI(TAG, "GPIO_RESET=%d",GPIO_RESET);
 	if ( GPIO_RESET >= 0 ) {
-		//gpio_pad_select_gpio( GPIO_RESET );
 		gpio_reset_pin( GPIO_RESET );
 		gpio_set_direction( GPIO_RESET, GPIO_MODE_OUTPUT );
 		gpio_set_level( GPIO_RESET, 1 );
@@ -82,7 +67,6 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 
 	ESP_LOGI(TAG, "GPIO_BL=%d",GPIO_BL);
 	if ( GPIO_BL >= 0 ) {
-		//gpio_pad_select_gpio(GPIO_BL);
 		gpio_reset_pin(GPIO_BL);
 		gpio_set_direction( GPIO_BL, GPIO_MODE_OUTPUT );
 		gpio_set_level( GPIO_BL, 0 );
@@ -106,10 +90,8 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 
 	spi_device_interface_config_t devcfg;
 	memset(&devcfg, 0, sizeof(devcfg));
-	//devcfg.clock_speed_hz = SPI_Frequency;
 	devcfg.clock_speed_hz = clock_speed_hz;
 	devcfg.queue_size = 7;
-	//devcfg.mode = 2;
 	devcfg.mode = 3;
 	devcfg.flags = SPI_DEVICE_NO_DUMMY;
 
@@ -912,51 +894,6 @@ int lcdDrawCode(TFT_t * dev, FontxFile *fx, uint16_t x,uint16_t y,uint8_t code,u
 	if (dev->_font_direction == 3) return y;
 	return 0;
 }
-
-#if 0
-// Draw UTF8 character
-// x:X coordinate
-// y:Y coordinate
-// utf8:UTF8 code
-// color:color
-int lcdDrawUTF8Char(TFT_t * dev, FontxFile *fx, uint16_t x,uint16_t y,uint8_t *utf8,uint16_t color) {
-	uint16_t sjis[1];
-
-	sjis[0] = UTF2SJIS(utf8);
-	if(_DEBUG_)printf("sjis=%04x\n",sjis[0]);
-	return lcdDrawSJISChar(dev, fx, x, y, sjis[0], color);
-}
-
-// Draw UTF8 string
-// x:X coordinate
-// y:Y coordinate
-// utfs:UTF8 string
-// color:color
-int lcdDrawUTF8String(TFT_t * dev, FontxFile *fx, uint16_t x, uint16_t y, unsigned char *utfs, uint16_t color) {
-
-	int i;
-	int spos;
-	uint16_t sjis[64];
-	spos = String2SJIS(utfs, strlen((char *)utfs), sjis, 64);
-	if(_DEBUG_)printf("spos=%d\n",spos);
-	for(i=0;i<spos;i++) {
-		if(_DEBUG_)printf("sjis[%d]=%x y=%d\n",i,sjis[i],y);
-		if (dev->_font_direction == 0)
-			x = lcdDrawSJISChar(dev, fx, x, y, sjis[i], color);
-		if (dev->_font_direction == 1)
-			y = lcdDrawSJISChar(dev, fx, x, y, sjis[i], color);
-		if (dev->_font_direction == 2)
-			x = lcdDrawSJISChar(dev, fx, x, y, sjis[i], color);
-		if (dev->_font_direction == 3)
-			y = lcdDrawSJISChar(dev, fx, x, y, sjis[i], color);
-	}
-	if (dev->_font_direction == 0) return x;
-	if (dev->_font_direction == 2) return x;
-	if (dev->_font_direction == 1) return y;
-	if (dev->_font_direction == 3) return y;
-	return 0;
-}
-#endif
 
 // Set font direction
 // dir:Direction

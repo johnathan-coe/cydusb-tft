@@ -34,18 +34,6 @@ static void SPIFFS_Directory(char * path) {
 	closedir(dir);
 }
 
-// You have to set these CONFIG value using menuconfig.
-#if 0
-#define CONFIG_WIDTH  240
-#define CONFIG_HEIGHT 240
-#define CONFIG_MOSI_GPIO 23
-#define CONFIG_SCLK_GPIO 18
-#define CONFIG_CS_GPIO -1
-#define CONFIG_DC_GPIO 19
-#define CONFIG_RESET_GPIO 15
-#define CONFIG_BL_GPIO -1
-#endif
-
 TickType_t FillTest(TFT_t * dev, int width, int height) {
 	TickType_t startTick, endTick, diffTick;
 	startTick = xTaskGetTickCount();
@@ -775,11 +763,6 @@ TickType_t QRTest(TFT_t * dev, char * file, int width, int height) {
 					buffidx++;
 					mask = 0x80;
 				}
-
-				//uint8_t b = sdbuffer[buffidx++];
-				//uint8_t g = sdbuffer[buffidx++];
-				//uint8_t r = sdbuffer[buffidx++];
-				//colors[index++] = rgb565(r, g, b);
 			} // end for col
 			ESP_LOGD(__FUNCTION__,"lcdDrawMultiPixels _x=%d _y=%d row=%d",_x, _y, row);
 			if (debug > 0) {
@@ -836,17 +819,6 @@ TickType_t JPEGTest(TFT_t * dev, char * file, int width, int height) {
 		}
 		ESP_LOGD(__FUNCTION__, "_height=%d _rows=%d", _height, _rows);
 		uint16_t *colors = (uint16_t*)malloc(sizeof(uint16_t) * _width);
-
-#if 0
-		for(int y = 0; y < _height; y++){
-			for(int x = 0;x < _width; x++){
-				pixel_jpeg pixel = pixels[y][x];
-				uint16_t color = rgb565(pixel.red, pixel.green, pixel.blue);
-				lcdDrawPixel(dev, x+_cols, y+_rows, color);
-			}
-			vTaskDelay(1);
-		}
-#endif
 
 		for(int y = 0; y < _height; y++){
 			for(int x = 0;x < _width; x++){
@@ -941,20 +913,8 @@ TickType_t PNGTest(TFT_t * dev, char * file, int width, int height) {
 	ESP_LOGD(__FUNCTION__, "_height=%d _rows=%d", _height, _rows);
 	uint16_t *colors = (uint16_t*)malloc(sizeof(uint16_t) * _width);
 
-#if 0
 	for(int y = 0; y < _height; y++){
 		for(int x = 0;x < _width; x++){
-			pixel_png pixel = pngle->pixels[y][x];
-			uint16_t color = rgb565(pixel.red, pixel.green, pixel.blue);
-			lcdDrawPixel(dev, x+_cols, y+_rows, color);
-		}
-	}
-#endif
-
-	for(int y = 0; y < _height; y++){
-		for(int x = 0;x < _width; x++){
-			//pixel_png pixel = pngle->pixels[y][x];
-			//colors[x] = rgb565(pixel.red, pixel.green, pixel.blue);
 			colors[x] = pngle->pixels[y][x];
 		}
 		lcdDrawMultiPixels(dev, _cols, y+_rows, _width, colors);
@@ -979,10 +939,8 @@ TickType_t CodeTest(TFT_t * dev, FontxFile *fx, int width, int height) {
 	uint8_t fontWidth;
 	uint8_t fontHeight;
 	GetFontx(fx, 0, buffer, &fontWidth, &fontHeight);
-	//ESP_LOGI(__FUNCTION__,"fontWidth=%d fontHeight=%d",fontWidth,fontHeight);
 	uint8_t xmoji = width / fontWidth;
 	uint8_t ymoji = height / fontHeight;
-	//ESP_LOGI(__FUNCTION__,"xmoji=%d ymoji=%d",xmoji, ymoji);
 
 	uint16_t color;
 	lcdFillScreen(dev, BLACK);
@@ -1084,21 +1042,6 @@ void ST7789(void *pvParameters)
 	ESP_LOGI(TAG, "Enable Display Inversion");
 	//lcdInversionOn(&dev);
 	lcdInversionOff(&dev);
-#endif
-
-#if 0
-	while (1) {
-		PNGTest(&dev, "/spiffs/esp_logo.png", CONFIG_WIDTH, CONFIG_HEIGHT);
-		WAIT;
-
-		if (dev._use_frame_buffer == true) {
-			WrapArroundTest(&dev, CONFIG_WIDTH, CONFIG_HEIGHT);
-			WAIT;
-		}
-
-		ArrowTest(&dev, fx16G, CONFIG_WIDTH, CONFIG_HEIGHT);
-		WAIT;
-	}
 #endif
 
 	while(1) {
