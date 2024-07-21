@@ -11,13 +11,12 @@
 
 #include "st7789.h"
 
-#define TAG "ST7789"
-#define	_DEBUG_ 0
+#define LOG_TAG "ST7789"
 
 #if CONFIG_SPI2_HOST
-#define HOST_ID SPI2_HOST
+	#define HOST_ID SPI2_HOST
 #elif CONFIG_SPI3_HOST
-#define HOST_ID SPI3_HOST
+	#define HOST_ID SPI3_HOST
 #endif
 
 static const int SPI_Command_Mode = 0;
@@ -26,7 +25,7 @@ static const int SPI_Data_Mode = 1;
 void delayMS(int ms) {
 	int _ms = ms + (portTICK_PERIOD_MS - 1);
 	TickType_t xTicksToDelay = _ms / portTICK_PERIOD_MS;
-	ESP_LOGD(TAG, "ms=%d _ms=%d portTICK_PERIOD_MS=%"PRIu32" xTicksToDelay=%"PRIu32,ms,_ms,portTICK_PERIOD_MS,xTicksToDelay);
+	ESP_LOGD(LOG_TAG, "ms=%d _ms=%d portTICK_PERIOD_MS=%"PRIu32" xTicksToDelay=%"PRIu32,ms,_ms,portTICK_PERIOD_MS,xTicksToDelay);
 	vTaskDelay(xTicksToDelay);
 }
 
@@ -34,19 +33,21 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 {
 	esp_err_t ret;
 
-	ESP_LOGI(TAG, "GPIO_CS=%d",GPIO_CS);
-	if ( GPIO_CS >= 0 ) {
+	ESP_LOGI(LOG_TAG, "GPIO_CS=%d",GPIO_CS);
+	
+	if (GPIO_CS >= 0)
+	{
 		gpio_reset_pin( GPIO_CS );
 		gpio_set_direction( GPIO_CS, GPIO_MODE_OUTPUT );
 		gpio_set_level( GPIO_CS, 0 );
 	}
 
-	ESP_LOGI(TAG, "GPIO_DC=%d",GPIO_DC);
+	ESP_LOGI(LOG_TAG, "GPIO_DC=%d",GPIO_DC);
 	gpio_reset_pin( GPIO_DC );
 	gpio_set_direction( GPIO_DC, GPIO_MODE_OUTPUT );
 	gpio_set_level( GPIO_DC, 0 );
 
-	ESP_LOGI(TAG, "GPIO_RESET=%d",GPIO_RESET);
+	ESP_LOGI(LOG_TAG, "GPIO_RESET=%d",GPIO_RESET);
 	if ( GPIO_RESET >= 0 ) {
 		gpio_reset_pin( GPIO_RESET );
 		gpio_set_direction( GPIO_RESET, GPIO_MODE_OUTPUT );
@@ -58,15 +59,15 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 		delayMS(100);
 	}
 
-	ESP_LOGI(TAG, "GPIO_BL=%d",GPIO_BL);
+	ESP_LOGI(LOG_TAG, "GPIO_BL=%d",GPIO_BL);
 	if ( GPIO_BL >= 0 ) {
 		gpio_reset_pin(GPIO_BL);
 		gpio_set_direction( GPIO_BL, GPIO_MODE_OUTPUT );
 		gpio_set_level( GPIO_BL, 0 );
 	}
 
-	ESP_LOGI(TAG, "GPIO_MOSI=%d",GPIO_MOSI);
-	ESP_LOGI(TAG, "GPIO_SCLK=%d",GPIO_SCLK);
+	ESP_LOGI(LOG_TAG, "GPIO_MOSI=%d",GPIO_MOSI);
+	ESP_LOGI(LOG_TAG, "GPIO_SCLK=%d",GPIO_SCLK);
 	spi_bus_config_t buscfg = {
 		.mosi_io_num = GPIO_MOSI,
 		.miso_io_num = -1,
@@ -78,7 +79,7 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 	};
 
 	ret = spi_bus_initialize( HOST_ID, &buscfg, SPI_DMA_CH_AUTO );
-	ESP_LOGD(TAG, "spi_bus_initialize=%d",ret);
+	ESP_LOGD(LOG_TAG, "spi_bus_initialize=%d",ret);
 	assert(ret==ESP_OK);
 
 	spi_device_interface_config_t devcfg;
@@ -89,15 +90,18 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 	devcfg.mode = 3;
 	devcfg.flags = SPI_DEVICE_NO_DUMMY;
 
-	if ( GPIO_CS >= 0 ) {
+	if (GPIO_CS >= 0)
+	{
 		devcfg.spics_io_num = GPIO_CS;
-	} else {
+	}
+	else
+	{
 		devcfg.spics_io_num = -1;
 	}
 	
 	spi_device_handle_t handle;
 	ret = spi_bus_add_device(HOST_ID, &devcfg, &handle);
-	ESP_LOGD(TAG, "spi_bus_add_device=%d",ret);
+	ESP_LOGD(LOG_TAG, "spi_bus_add_device=%d",ret);
 	assert(ret==ESP_OK);
 
 	dev->_dc = GPIO_DC;
@@ -110,13 +114,14 @@ bool spi_master_write_byte(spi_device_handle_t SPIHandle, const uint8_t* Data, s
 	spi_transaction_t SPITransaction;
 	esp_err_t ret;
 
-	if ( DataLength > 0 ) {
-		memset( &SPITransaction, 0, sizeof( spi_transaction_t ) );
+	if (DataLength > 0)
+	{
+		memset(&SPITransaction, 0, sizeof(spi_transaction_t));
 		SPITransaction.length = DataLength * 8;
 		SPITransaction.tx_buffer = Data;
 
 		ret = spi_device_transmit(SPIHandle, &SPITransaction); // Could use polling transmit here
-		assert(ret==ESP_OK); 
+		assert(ret == ESP_OK); 
 	}
 
 	return true;
@@ -124,18 +129,14 @@ bool spi_master_write_byte(spi_device_handle_t SPIHandle, const uint8_t* Data, s
 
 bool spi_master_write_command(TFT_t * dev, uint8_t cmd)
 {
-	static uint8_t Byte = 0;
-	Byte = cmd;
 	gpio_set_level( dev->_dc, SPI_Command_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, &Byte, 1 );
+	return spi_master_write_byte(dev->_SPIHandle, &cmd, 1);
 }
 
 bool spi_master_write_data_byte(TFT_t * dev, uint8_t data)
 {
-	static uint8_t Byte = 0;
-	Byte = data;
 	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, &Byte, 1 );
+	return spi_master_write_byte(dev->_SPIHandle, &data, 1);
 }
 
 bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
@@ -147,21 +148,6 @@ bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
 	Byte[3] = addr2 & 0xFF;
 	gpio_set_level( dev->_dc, SPI_Data_Mode );
 	return spi_master_write_byte( dev->_SPIHandle, Byte, 4);
-}
-
-bool spi_master_write_color(TFT_t * dev, uint16_t color, uint16_t size)
-{
-	static uint8_t Byte[1024];
-	int index = 0;
-	
-	for(int i = 0; i < size; i++)
-	{
-		Byte[index++] = (color >> 8) & 0xFF;
-		Byte[index++] = color & 0xFF;
-	}
-
-	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, Byte, size*2);
 }
 
 bool spi_master_write_colors(TFT_t* dev, uint8_t* colors, size_t size)
@@ -177,51 +163,52 @@ void lcdInit(TFT_t * dev, int width, int height, int offsetx, int offsety)
 	dev->_offsetx = offsetx;
 	dev->_offsety = offsety;
 
-	spi_master_write_command(dev, 0x01);	//Software Reset
+	// Software Reset
+	spi_master_write_command(dev, 0x01);
 	delayMS(150);
 
-	spi_master_write_command(dev, 0x11);	//Sleep Out
+	// Sleep Out
+	spi_master_write_command(dev, 0x11);
 	delayMS(255);
 	
-	spi_master_write_command(dev, 0x3A);	//Interface Pixel Format
+	// Interface Pixel Format
+	spi_master_write_command(dev, 0x3A);
 	spi_master_write_data_byte(dev, 0x55);
 	delayMS(10);
 	
-	spi_master_write_command(dev, 0x36);	//Memory Data Access Control
+	// Memory Data Access Control
+	spi_master_write_command(dev, 0x36);
 	spi_master_write_data_byte(dev, 0x00);
 
-	spi_master_write_command(dev, 0x2A);	//Column Address Set
+	// Column Address Set
+	spi_master_write_command(dev, 0x2A);
 	spi_master_write_data_byte(dev, 0x00);
 	spi_master_write_data_byte(dev, 0x00);
 	spi_master_write_data_byte(dev, 0x00);
 	spi_master_write_data_byte(dev, 0xF0);
 
-	spi_master_write_command(dev, 0x2B);	//Row Address Set
+	// Row Address Set
+	spi_master_write_command(dev, 0x2B);
 	spi_master_write_data_byte(dev, 0x00);
 	spi_master_write_data_byte(dev, 0x00);
 	spi_master_write_data_byte(dev, 0x00);
 	spi_master_write_data_byte(dev, 0xF0);
 
-	spi_master_write_command(dev, 0x13);	//Normal Display Mode On
+	// Normal Display Mode On
+	spi_master_write_command(dev, 0x13);
 	delayMS(10);
 
-	spi_master_write_command(dev, 0x29);	//Display ON
+	lcdDisplayOn(dev);
 	delayMS(255);
 
-	if(dev->_bl >= 0) {
-		gpio_set_level( dev->_bl, 1 );
-	}
+	lcdBacklightOn(dev);
 
 	// This TFT uses RBG 565, which means 2 bytes per pixel
 	dev->_frame_buffer = heap_caps_malloc(sizeof(uint8_t) * width * height * 2, MALLOC_CAP_DMA);
 
 	if (dev->_frame_buffer == NULL)
 	{
-		ESP_LOGE(TAG, "heap_caps_malloc fail");
-	}
-	else
-	{
-		ESP_LOGI(TAG, "heap_caps_malloc success");
+		ESP_LOGE(LOG_TAG, "heap_caps_malloc fail");
 	}
 }
 
@@ -251,6 +238,11 @@ void lcdInversionOff(TFT_t * dev) {
 
 void lcdInversionOn(TFT_t * dev) {
 	spi_master_write_command(dev, 0x21);
+}
+
+void lcdFill(TFT_t* dev, uint8_t color)
+{
+	memset(dev->_frame_buffer, color, sizeof(uint8_t) * dev->_width * dev->_height * 2);
 }
 
 void lcdDrawPixel(TFT_t * dev, uint16_t x, uint16_t y, uint16_t color)
@@ -292,18 +284,26 @@ void lcdDrawPixels(TFT_t * dev, uint16_t x, uint16_t y, uint16_t size, uint16_t*
 
 void lcdDrawFinish(TFT_t *dev)
 {
-	spi_master_write_command(dev, 0x2A); // set column(x) address
+	// set column(x) address
+	spi_master_write_command(dev, 0x2A);
 	spi_master_write_addr(dev, dev->_offsetx, dev->_offsetx+dev->_width-1);
-	spi_master_write_command(dev, 0x2B); // set Page(y) address
-	spi_master_write_addr(dev, dev->_offsety, dev->_offsety+dev->_height-1);
-	spi_master_write_command(dev, 0x2C); // Memory Write
 
-	uint32_t size = dev->_width * dev->_height * 2;
+	// set Page(y) address
+	spi_master_write_command(dev, 0x2B);
+	spi_master_write_addr(dev, dev->_offsety, dev->_offsety+dev->_height-1);
+	
+	// Memory Write
+	spi_master_write_command(dev, 0x2C);
+
 	uint8_t *image = dev->_frame_buffer;
 
+	uint32_t size = dev->_width * dev->_height * 2;
 	while (size > 0)
 	{
-		uint16_t chunkSize = (size > 512) ? 512 : size;
+		uint16_t chunkSize = (size > 2048)
+			? 2048
+			: size;
+
 		spi_master_write_colors(dev, image, chunkSize);
 
 		size -= chunkSize;
