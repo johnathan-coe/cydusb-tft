@@ -12,6 +12,8 @@
 #include "st7789.h"
 
 #define LOG_TAG "ST7789"
+#define TRANS_QUEUE_LENGTH 32
+#define TRANS_DATA_BYTES 4096
 
 #if CONFIG_SPI2_HOST
 	#define HOST_ID SPI2_HOST
@@ -73,7 +75,7 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 		.sclk_io_num = GPIO_SCLK,
 		.quadwp_io_num = -1,
 		.quadhd_io_num = -1,
-		.max_transfer_sz = 0,
+		.max_transfer_sz = TRANS_DATA_BYTES,
 		.flags = 0
 	};
 
@@ -85,7 +87,7 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 	memset(&devcfg, 0, sizeof(devcfg));
 
 	devcfg.clock_speed_hz = clock_speed_hz;
-	devcfg.queue_size = 7;
+	devcfg.queue_size = TRANS_QUEUE_LENGTH;
 	devcfg.mode = 3;
 	devcfg.flags = SPI_DEVICE_NO_DUMMY;
 
@@ -108,35 +110,83 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 	dev->_SPIHandle = handle;
 }
 
-bool spi_master_write_byte(spi_device_handle_t SPIHandle, const uint8_t* data, size_t length)
+bool spi_master_write_bytes(spi_device_handle_t SPIHandle, uint8_t* data, size_t length)
 {
-	spi_transaction_t transaction;
-	esp_err_t ret;
+	if (length == 0)
+		return true;
 
-	if (length > 0)
+	if (length <= TRANS_DATA_BYTES)
 	{
+		spi_transaction_t transaction;
 		memset(&transaction, 0, sizeof(spi_transaction_t));
 
-		transaction.length = length * 8; // Length in bits
+		transaction.length = length * 8;
 		transaction.tx_buffer = data;
 
-		ret = spi_device_transmit(SPIHandle, &transaction); // Could use polling transmit here
-		assert(ret == ESP_OK); 
+		esp_err_t ret = spi_device_polling_transmit(SPIHandle, &transaction);
+		assert(ret == ESP_OK);
+		return true;
+	}
+	
+	spi_transaction_t transRing[TRANS_QUEUE_LENGTH];
+	size_t ringIdx = 0;
+	bool ringIdxOverflowed = false;
+
+	spi_device_acquire_bus(SPIHandle, portMAX_DELAY);
+
+	uint8_t* dataOffset = data;
+	while (length > 0)
+	{
+		// Wait for transaction in ring
+		if (ringIdxOverflowed)
+		{
+			spi_transaction_t* transComplete;
+			spi_device_get_trans_result(SPIHandle, &transComplete, portMAX_DELAY);
+		}
+
+		// Determine the number of bytes to send in this transaction
+		uint16_t chunkSize = (length > TRANS_DATA_BYTES)
+			? TRANS_DATA_BYTES
+			: length;
+
+		// Send a new transaction
+		memset(&transRing[ringIdx], 0, sizeof(spi_transaction_t));
+		transRing[ringIdx].length = chunkSize * 8;
+		transRing[ringIdx].tx_buffer = dataOffset;
+		spi_device_queue_trans(SPIHandle, &transRing[ringIdx], portMAX_DELAY);
+
+		ringIdx++;
+		ringIdxOverflowed |= ringIdx == TRANS_QUEUE_LENGTH;
+		ringIdx %= TRANS_QUEUE_LENGTH;
+
+		dataOffset += chunkSize;
+		length -= chunkSize;
 	}
 
+	size_t waitRangeIdx = ringIdxOverflowed
+		? TRANS_QUEUE_LENGTH
+		: ringIdx;
+
+	for (int i = 0; i < waitRangeIdx; i++)
+	{
+		spi_transaction_t* transComplete;
+		spi_device_get_trans_result(SPIHandle, &transComplete, portMAX_DELAY);
+	}
+	
+	spi_device_release_bus(SPIHandle);
 	return true;
 }
 
 bool spi_master_write_command(TFT_t * dev, uint8_t cmd)
 {
 	gpio_set_level( dev->_dc, SPI_Command_Mode );
-	return spi_master_write_byte(dev->_SPIHandle, &cmd, 1);
+	return spi_master_write_bytes(dev->_SPIHandle, &cmd, 1);
 }
 
 bool spi_master_write_data_byte(TFT_t * dev, uint8_t data)
 {
 	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_byte(dev->_SPIHandle, &data, 1);
+	return spi_master_write_bytes(dev->_SPIHandle, &data, 1);
 }
 
 bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
@@ -147,13 +197,13 @@ bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
 	Byte[2] = (addr2 >> 8) & 0xFF;
 	Byte[3] = addr2 & 0xFF;
 	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_byte( dev->_SPIHandle, Byte, 4);
+	return spi_master_write_bytes( dev->_SPIHandle, Byte, 4);
 }
 
 bool spi_master_write_colors(TFT_t* dev, uint8_t* colors, size_t size)
 {
 	gpio_set_level(dev->_dc, SPI_Data_Mode);
-	return spi_master_write_byte(dev->_SPIHandle, colors, size);
+	return spi_master_write_bytes(dev->_SPIHandle, colors, size);
 }
 
 void lcdInit(TFT_t * dev, int width, int height, int offsetx, int offsety)
@@ -298,17 +348,6 @@ void lcdDrawFinish(TFT_t *dev)
 
 	uint8_t *image = dev->_frame_buffer;
 	uint32_t size = dev->_width * dev->_height * 2;
-	while (size > 0)
-	{
-		uint16_t chunkSize = (size > 2048)
-			? 2048
-			: size;
-
-		spi_master_write_colors(dev, image, chunkSize);
-
-		size -= chunkSize;
-		image += chunkSize;
-	}
-
+	spi_master_write_colors(dev, image, size);
 	return;
 }

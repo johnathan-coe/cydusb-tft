@@ -6,7 +6,20 @@
         "cassert": "c",
         "chrono": "c",
         "ranges": "c",
-        "variant": "c"
+        "variant": "c",
+        "cstdint": "c",
+        "random": "c",
+        "bitset": "c",
+        "string_view": "c",
+        "st7789.h": "c",
+        "array": "c",
+        "hash_map": "c",
+        "hash_set": "c",
+        "format": "c",
+        "initializer_list": "c",
+        "span": "c",
+        "valarray": "c",
+        "*.tcc": "c"
     },
     "idf.adapterTargetName": "esp32"
 }

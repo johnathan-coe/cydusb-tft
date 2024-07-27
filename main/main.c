@@ -1,6 +1,7 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+#include "esp_log.h"
 #include "st7789.h"
 
 void ST7789(void *pvParameters)
@@ -39,8 +40,12 @@ void ST7789(void *pvParameters)
 			}
 		}
 
+		TickType_t lastFrame = xTaskGetTickCount();
 		lcdDrawFinish(&dev);
-		delayMS(1000);
+		TickType_t thisFrame = xTaskGetTickCount();
+		TickType_t diff = thisFrame - lastFrame;
+
+		ESP_LOGI("MAIN", "%f", 1000.0f / (diff * portTICK_PERIOD_MS));
 		a = !a;
 	}
 }
