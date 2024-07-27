@@ -19,7 +19,8 @@
         "initializer_list": "c",
         "span": "c",
         "valarray": "c",
-        "*.tcc": "c"
+        "*.tcc": "c",
+        "cstring": "c"
     },
     "idf.adapterTargetName": "esp32"
 }
