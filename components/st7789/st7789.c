@@ -223,26 +223,13 @@ void lcdInit(TFT_t * dev, rgb_interface rgb)
 		: 2;
 
 	spi_master_write_command(dev, SWRESET);
-	delayMS(150);
-
-	spi_master_write_command(dev, SLEEP_OUT);
-	delayMS(255);
-	
+	spi_master_write_command(dev, SLEEP_OUT);	
 	spi_master_write_command(dev, SET_RGB_INTERFACE);
-	spi_master_write_data_byte(dev, rgb);
-	delayMS(10);
-	
+	spi_master_write_data_byte(dev, rgb);	
 	spi_master_write_command(dev, SET_MEMORY_DATA_ACCESS);
 	spi_master_write_data_byte(dev, 0x00);
-
 	spi_master_write_command(dev, NORMAL_DISPLAY_MODE);
-	delayMS(10);
-
-	// Power to display
 	lcdDisplayOn(dev);
-	delayMS(255);
-
-	// Power to backlight
 	lcdBacklightOn(dev);
 }
 
