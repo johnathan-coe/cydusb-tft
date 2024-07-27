@@ -22,6 +22,12 @@
 	#define HOST_ID SPI3_HOST
 #endif
 
+typedef enum
+{
+	COMMAND_MODE = 0,
+	DATA_MODE = 1
+} SPI_MODE_t;
+
 enum command
 {
 	SWRESET = 0x01,
@@ -37,18 +43,6 @@ enum command
 	SET_RGB_INTERFACE = 0x3A,
 	SET_MEMORY_DATA_ACCESS = 0x36
 };
-
-enum rgb_interface
-{
-	RGB65K =   0b01010000,
-	RGB262K =  0b01100000,
-	CIC12BPP = 0b00000011,
-	CIC16BPP = 0b00000101,
-	CIC18BPP = 0b00000110,
-};
-
-static const int SPI_Command_Mode = 0;
-static const int SPI_Data_Mode = 1;
 
 void delayMS(int ms) {
 	int _ms = ms + (portTICK_PERIOD_MS - 1);
@@ -123,7 +117,7 @@ void spi_master_init(TFT_t * dev, int16_t GPIO_MOSI, int16_t GPIO_SCLK, int16_t 
 
 	dev->_dc = GPIO_DC;
 	dev->_bl = GPIO_BL;
-	dev->_SPIHandle = handle;
+	dev->_handle = handle;
 }
 
 bool spi_master_write_bytes(spi_device_handle_t SPIHandle, uint8_t* data, size_t length)
@@ -193,16 +187,21 @@ bool spi_master_write_bytes(spi_device_handle_t SPIHandle, uint8_t* data, size_t
 	return true;
 }
 
+void spi_set_mode(TFT_t* dev, SPI_MODE_t mode)
+{
+	gpio_set_level(dev->_dc, mode);
+}
+
 bool spi_master_write_command(TFT_t * dev, uint8_t cmd)
 {
-	gpio_set_level( dev->_dc, SPI_Command_Mode );
-	return spi_master_write_bytes(dev->_SPIHandle, &cmd, 1);
+	spi_set_mode(dev, COMMAND_MODE);
+	return spi_master_write_bytes(dev->_handle, &cmd, 1);
 }
 
 bool spi_master_write_data_byte(TFT_t * dev, uint8_t data)
 {
-	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_bytes(dev->_SPIHandle, &data, 1);
+	spi_set_mode(dev, DATA_MODE);
+	return spi_master_write_bytes(dev->_handle, &data, 1);
 }
 
 bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
@@ -212,12 +211,17 @@ bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
 	Byte[1] = addr1 & 0xFF;
 	Byte[2] = (addr2 >> 8) & 0xFF;
 	Byte[3] = addr2 & 0xFF;
-	gpio_set_level( dev->_dc, SPI_Data_Mode );
-	return spi_master_write_bytes( dev->_SPIHandle, Byte, 4);
+
+	spi_set_mode(dev, DATA_MODE);
+	return spi_master_write_bytes(dev->_handle, Byte, 4);
 }
 
-void lcdInit(TFT_t * dev)
+void lcdInit(TFT_t * dev, rgb_interface rgb)
 {
+	dev->_bytesPerPixel = ((rgb & CIC18BPP) == CIC18BPP)
+		? 3
+		: 2;
+
 	spi_master_write_command(dev, SWRESET);
 	delayMS(150);
 
@@ -225,7 +229,7 @@ void lcdInit(TFT_t * dev)
 	delayMS(255);
 	
 	spi_master_write_command(dev, SET_RGB_INTERFACE);
-	spi_master_write_data_byte(dev, RGB65K | CIC16BPP);
+	spi_master_write_data_byte(dev, rgb);
 	delayMS(10);
 	
 	spi_master_write_command(dev, SET_MEMORY_DATA_ACCESS);
@@ -251,15 +255,17 @@ void lcdDisplayOn(TFT_t * dev) {
 }
 
 void lcdBacklightOff(TFT_t * dev) {
-	if(dev->_bl >= 0) {
-		gpio_set_level( dev->_bl, 0 );
-	}
+	if (dev->_bl < 0)
+		return;
+
+	gpio_set_level( dev->_bl, 0 );
 }
 
 void lcdBacklightOn(TFT_t * dev) {
-	if(dev->_bl >= 0) {
-		gpio_set_level( dev->_bl, 1 );
-	}
+	if (dev->_bl < 0)
+		return;
+	
+	gpio_set_level( dev->_bl, 1 );
 }
 
 void lcdInversionOff(TFT_t * dev) {
@@ -279,8 +285,8 @@ void lcdDrawPixels(TFT_t* dev, uint16_t x, uint16_t y, uint16_t width, uint16_t 
 	spi_master_write_addr(dev, y, y + height - 1);
 	
 	spi_master_write_command(dev, MEMORY_WRITE);
-	gpio_set_level(dev->_dc, SPI_Data_Mode);
+	spi_set_mode(dev, DATA_MODE);
 
-	size_t size = width * height * 2;
-	spi_master_write_bytes(dev->_SPIHandle, colors, size);
+	size_t size = width * height * dev->_bytesPerPixel;
+	spi_master_write_bytes(dev->_handle, colors, size);
 }

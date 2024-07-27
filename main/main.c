@@ -10,7 +10,7 @@ void ST7789(void *pvParameters)
 {
 	TFT_t dev;
 	spi_master_init(&dev, CONFIG_MOSI_GPIO, CONFIG_SCLK_GPIO, CONFIG_CS_GPIO, CONFIG_DC_GPIO, CONFIG_RESET_GPIO, CONFIG_BL_GPIO, 55000000);
-	lcdInit(&dev);
+	lcdInit(&dev, RGB262K | CIC16BPP);
 	lcdInversionOff(&dev);
 
 	uint8_t buf[1800];
