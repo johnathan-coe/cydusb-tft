@@ -12,6 +12,7 @@
 #include "st7789.h"
 
 #define LOG_TAG "ST7789"
+
 #define TRANS_QUEUE_LENGTH 32
 #define TRANS_DATA_BYTES 4096
 
@@ -20,6 +21,31 @@
 #elif CONFIG_SPI3_HOST
 	#define HOST_ID SPI3_HOST
 #endif
+
+enum command
+{
+	SWRESET = 0x01,
+	SLEEP_OUT = 0x11,
+	NORMAL_DISPLAY_MODE = 0x13,
+	INVERSION_OFF = 0x20,
+	INVERSION_ON = 0x21,
+	COLUMN_ADDRESS_SET = 0x2A,
+	ROW_ADDRESS_SET = 0x2B,
+	MEMORY_WRITE = 0x2C,
+	DISPLAY_OFF = 0x28,
+	DISPLAY_ON = 0x29,
+	SET_RGB_INTERFACE = 0x3A,
+	SET_MEMORY_DATA_ACCESS = 0x36
+};
+
+enum rgb_interface
+{
+	RGB65K =   0b01010000,
+	RGB262K =  0b01100000,
+	CIC12BPP = 0b00000011,
+	CIC16BPP = 0b00000101,
+	CIC18BPP = 0b00000110,
+};
 
 static const int SPI_Command_Mode = 0;
 static const int SPI_Data_Mode = 1;
@@ -192,39 +218,20 @@ bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
 
 void lcdInit(TFT_t * dev)
 {
-	// Software Reset
-	spi_master_write_command(dev, 0x01);
+	spi_master_write_command(dev, SWRESET);
 	delayMS(150);
 
-	// Sleep Out
-	spi_master_write_command(dev, 0x11);
+	spi_master_write_command(dev, SLEEP_OUT);
 	delayMS(255);
 	
-	// Interface Pixel Format
-	spi_master_write_command(dev, 0x3A);
-	spi_master_write_data_byte(dev, 0x55);
+	spi_master_write_command(dev, SET_RGB_INTERFACE);
+	spi_master_write_data_byte(dev, RGB65K | CIC16BPP);
 	delayMS(10);
 	
-	// Memory Data Access Control
-	spi_master_write_command(dev, 0x36);
+	spi_master_write_command(dev, SET_MEMORY_DATA_ACCESS);
 	spi_master_write_data_byte(dev, 0x00);
 
-	// Column Address Set
-	spi_master_write_command(dev, 0x2A);
-	spi_master_write_data_byte(dev, 0x00);
-	spi_master_write_data_byte(dev, 0x00);
-	spi_master_write_data_byte(dev, 0x00);
-	spi_master_write_data_byte(dev, 0xF0);
-
-	// Row Address Set
-	spi_master_write_command(dev, 0x2B);
-	spi_master_write_data_byte(dev, 0x00);
-	spi_master_write_data_byte(dev, 0x00);
-	spi_master_write_data_byte(dev, 0x00);
-	spi_master_write_data_byte(dev, 0xF0);
-
-	// Normal Display Mode On
-	spi_master_write_command(dev, 0x13);
+	spi_master_write_command(dev, NORMAL_DISPLAY_MODE);
 	delayMS(10);
 
 	// Power to display
@@ -236,11 +243,11 @@ void lcdInit(TFT_t * dev)
 }
 
 void lcdDisplayOff(TFT_t * dev) {
-	spi_master_write_command(dev, 0x28);
+	spi_master_write_command(dev, DISPLAY_OFF);
 }
  
 void lcdDisplayOn(TFT_t * dev) {
-	spi_master_write_command(dev, 0x29);
+	spi_master_write_command(dev, DISPLAY_ON);
 }
 
 void lcdBacklightOff(TFT_t * dev) {
@@ -256,28 +263,24 @@ void lcdBacklightOn(TFT_t * dev) {
 }
 
 void lcdInversionOff(TFT_t * dev) {
-	spi_master_write_command(dev, 0x20);
+	spi_master_write_command(dev, INVERSION_OFF);
 }
 
 void lcdInversionOn(TFT_t * dev) {
-	spi_master_write_command(dev, 0x21);
+	spi_master_write_command(dev, INVERSION_ON);
 }
 
 void lcdDrawPixels(TFT_t* dev, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint8_t* colors)
 {
-	// Set column(x) address
-	spi_master_write_command(dev, 0x2A);
+	spi_master_write_command(dev, COLUMN_ADDRESS_SET);
 	spi_master_write_addr(dev, x, x + width - 1);
 
-	// Set Page(y) address
-	spi_master_write_command(dev, 0x2B);
+	spi_master_write_command(dev, ROW_ADDRESS_SET);
 	spi_master_write_addr(dev, y, y + height - 1);
 	
-	// Memory Write
-	spi_master_write_command(dev, 0x2C);
+	spi_master_write_command(dev, MEMORY_WRITE);
 	gpio_set_level(dev->_dc, SPI_Data_Mode);
 
-	// Dump bytes
 	size_t size = width * height * 2;
 	spi_master_write_bytes(dev->_SPIHandle, colors, size);
 }
