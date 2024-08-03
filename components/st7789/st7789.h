@@ -33,7 +33,7 @@ void lcdBacklightOn(TFT_t * dev);
 void lcdInversionOff(TFT_t * dev);
 void lcdInversionOn(TFT_t * dev);
 
-void lcdDrawPixels(TFT_t* dev, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint8_t* colors);
+void lcdDrawPixels(TFT_t* dev, uint16_t x, uint16_t y, uint16_t x1, uint16_t y1, uint8_t* colors, size_t length);
 
 #endif /* MAIN_ST7789_H_ */
 

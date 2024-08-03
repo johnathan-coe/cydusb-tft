@@ -20,7 +20,12 @@
         "span": "c",
         "valarray": "c",
         "*.tcc": "c",
-        "cstring": "c"
+        "cstring": "c",
+        "string.h": "c",
+        "inttypes.h": "c",
+        "jcfx.h": "c",
+        "freertos.h": "c",
+        "compare": "c"
     },
     "idf.adapterTargetName": "esp32"
 }

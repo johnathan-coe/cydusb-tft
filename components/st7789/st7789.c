@@ -206,14 +206,14 @@ bool spi_master_write_data_byte(TFT_t * dev, uint8_t data)
 
 bool spi_master_write_addr(TFT_t * dev, uint16_t addr1, uint16_t addr2)
 {
-	static uint8_t Byte[4];
-	Byte[0] = (addr1 >> 8) & 0xFF;
-	Byte[1] = addr1 & 0xFF;
-	Byte[2] = (addr2 >> 8) & 0xFF;
-	Byte[3] = addr2 & 0xFF;
+	static uint8_t bytes[4];
+	bytes[0] = (addr1 >> 8) & 0xFF;
+	bytes[1] = addr1 & 0xFF;
+	bytes[2] = (addr2 >> 8) & 0xFF;
+	bytes[3] = addr2 & 0xFF;
 
 	spi_set_mode(dev, DATA_MODE);
-	return spi_master_write_bytes(dev->_handle, Byte, 4);
+	return spi_master_write_bytes(dev->_handle, bytes, 4);
 }
 
 void lcdInit(TFT_t * dev, rgb_interface rgb)
@@ -263,17 +263,16 @@ void lcdInversionOn(TFT_t * dev) {
 	spi_master_write_command(dev, INVERSION_ON);
 }
 
-void lcdDrawPixels(TFT_t* dev, uint16_t x, uint16_t y, uint16_t width, uint16_t height, uint8_t* colors)
+void lcdDrawPixels(TFT_t* dev, uint16_t x, uint16_t y, uint16_t x1, uint16_t y1, uint8_t* colors, size_t length)
 {
 	spi_master_write_command(dev, COLUMN_ADDRESS_SET);
-	spi_master_write_addr(dev, x, x + width - 1);
+	spi_master_write_addr(dev, x, x1);
 
 	spi_master_write_command(dev, ROW_ADDRESS_SET);
-	spi_master_write_addr(dev, y, y + height - 1);
+	spi_master_write_addr(dev, y, y1);
 	
 	spi_master_write_command(dev, MEMORY_WRITE);
 	spi_set_mode(dev, DATA_MODE);
 
-	size_t size = width * height * dev->_bytesPerPixel;
-	spi_master_write_bytes(dev->_handle, colors, size);
+	spi_master_write_bytes(dev->_handle, colors, length);
 }
