@@ -25,7 +25,8 @@
         "inttypes.h": "c",
         "jcfx.h": "c",
         "freertos.h": "c",
-        "compare": "c"
+        "compare": "c",
+        "cmath": "c"
     },
     "idf.adapterTargetName": "esp32"
 }
